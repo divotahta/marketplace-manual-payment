@@ -229,4 +229,23 @@ class ProductController extends Controller
 
         return view('products.partials.product-list', compact('products'))->render();
     }
+
+    public function searchAdmin(Request $request)
+    {
+        $query = Product::with('category');
+
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('description', 'like', '%' . $request->search . '%')
+                  ->orWhereHas('category', function($q) use ($request) {
+                      $q->where('name', 'like', '%' . $request->search . '%');
+                  });
+            });
+        }
+
+        $products = $query->latest()->paginate(10);
+
+        return view('admin.products.partials.product-table', compact('products'))->render();
+    }
 }

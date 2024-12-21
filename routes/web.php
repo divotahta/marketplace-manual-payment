@@ -54,6 +54,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->group(fu
     
     // Report
     Route::get('/report', [TransaksiAdminController::class, 'report'])->name('admin.report');
+    Route::post('/products/search', [ProductController::class, 'searchAdmin'])->name('admin.products.search');
 });
 
 // Route pelanggan
