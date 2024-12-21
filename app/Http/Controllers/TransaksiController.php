@@ -117,22 +117,11 @@ class TransaksiController extends Controller
                     'payment_status' => 'menunggu konfirmasi'
                 ]);
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Bukti pembayaran berhasil diupload'
-                ]);
+                return redirect()->route('pelanggan.transaksi.show', $transaksi)
+                    ->with('success', 'Bukti pembayaran berhasil diupload');
             }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'File tidak valid'
-            ], 400);
-
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengupload bukti pembayaran'
-            ], 500);
+            return back()->with('error', 'Terjadi kesalahan saat mengupload bukti pembayaran');
         }
     }
 
@@ -146,12 +135,22 @@ class TransaksiController extends Controller
             return back()->with('error', 'Hanya pesanan dengan status menunggu yang dapat dibatalkan');
         }
 
-        // Update status transaksi menjadi dibatalkan
-        $transaksi->update([
-            'status' => 'dibatalkan'  // Admin akan mengkonfirmasi dengan mengubah payment_status
-        ]);
+        DB::beginTransaction();
+        try {
+            // Update status transaksi menjadi dibatalkan
+            $transaksi->update([
+                'status' => 'dibatalkan'
+            ]);
 
-        return redirect()->route('pelanggan.transaksi.show', $transaksi)
-            ->with('success', 'Permintaan pembatalan pesanan sedang diproses admin');
+            // Set produk menjadi available kembali
+            $transaksi->product->update(['status' => 'available']);
+
+            DB::commit();
+            return redirect()->route('pelanggan.transaksi.show', $transaksi)
+                ->with('success', 'Permintaan pembatalan pesanan sedang diproses admin');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'Terjadi kesalahan saat membatalkan pesanan');
+        }
     }
 }

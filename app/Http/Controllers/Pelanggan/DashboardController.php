@@ -15,7 +15,12 @@ class DashboardController extends Controller
 
         // Data untuk ringkasan
         $totalTransaksi = $user->transaksis()->count();
-        $totalPengeluaran = $user->transaksis()->sum('total_price');
+        
+        // Hitung total pengeluaran kecuali transaksi yang dibatalkan
+        $totalPengeluaran = $user->transaksis()
+            ->where('status', '!=', 'dibatalkan')
+            ->sum('total_price');
+        
         $pesananAktif = $user->transaksis()
             ->whereIn('status', ['menunggu', 'diproses'])
             ->count();
@@ -32,6 +37,7 @@ class DashboardController extends Controller
             ->latest()
             ->limit(4)
             ->get();
+
         return view('pelanggan.dashboard', compact(
             'totalTransaksi',
             'totalPengeluaran',

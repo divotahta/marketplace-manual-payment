@@ -39,19 +39,13 @@ class TransaksiAdminController extends Controller
                 'payment_status' => $request->payment_status
             ]);
 
-            // Jika status diproses atau selesai, update status produk menjadi sold
-            if (in_array($request->status, ['diproses', 'selesai'])) {
-                $transaksi->product->update(['status' => 'sold']);
-            }
-
-            // Jika admin menyetujui pembatalan (status dibatalkan dan payment gagal)
-            if ($request->status === 'dibatalkan' && $request->payment_status === 'gagal') {
+            // Jika status dibatalkan, set produk menjadi available kembali
+            if ($request->status === 'dibatalkan') {
                 $transaksi->product->update(['status' => 'available']);
             }
 
             DB::commit();
             return back()->with('success', 'Status transaksi berhasil diperbarui');
-
         } catch (\Exception $e) {
             DB::rollback();
             return back()->with('error', 'Terjadi kesalahan saat memperbarui status');
@@ -61,22 +55,30 @@ class TransaksiAdminController extends Controller
     public function report()
     {
         // Data transaksi per bulan
-        $monthlyTransactions = Transaksi::selectRaw('MONTH(created_at) as month, COUNT(*) as total_transactions, SUM(total_price) as total_revenue')
+        $monthlyTransactions = Transaksi::selectRaw('
+            MONTH(created_at) as month, 
+            COUNT(*) as total_transactions, 
+            SUM(CASE WHEN status != "dibatalkan" THEN total_price ELSE 0 END) as total_revenue
+        ')
             ->whereYear('created_at', date('Y'))
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
-        // Data produk terlaris
-        $topProducts = Product::withCount(['transaksis as total_sold'])
+        // Data produk terlaris (hanya menghitung transaksi yang tidak dibatalkan)
+        $topProducts = Product::withCount(['transaksis as total_sold' => function($query) {
+                $query->where('status', '!=', 'dibatalkan');
+            }])
             ->orderByDesc('total_sold')
             ->limit(5)
             ->get();
 
-        // Data kategori terlaris (perbaikan query)
+        // Data kategori terlaris (tidak termasuk transaksi yang dibatalkan)
         $topCategories = Category::withCount('products')
             ->withCount(['products as total_sold' => function($query) {
-                $query->withCount('transaksis');
+                $query->whereHas('transaksis', function($q) {
+                    $q->where('status', '!=', 'dibatalkan');
+                });
             }])
             ->orderByDesc('total_sold')
             ->limit(5)
