@@ -186,4 +186,47 @@ class ProductController extends Controller
 
         return view('admin.report', compact('kategoriHP'));
     }
+
+    public function search(Request $request)
+    {
+        $query = Product::query();
+
+        // Filter berdasarkan pencarian
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('description', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        // Filter berdasarkan kategori
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
+
+        // Filter berdasarkan kondisi
+        if ($request->filled('condition')) {
+            $query->where('condition', $request->condition);
+        }
+
+        // Pengurutan
+        switch ($request->sort) {
+            case 'price_asc':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'oldest':
+                $query->oldest();
+                break;
+            default:
+                $query->latest();
+                break;
+        }
+
+        $products = $query->paginate(9);
+
+        return view('products.partials.product-list', compact('products'))->render();
+    }
 }

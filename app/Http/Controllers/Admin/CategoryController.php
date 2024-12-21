@@ -21,7 +21,7 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories',
-            'slug' => 'required|string|unique:categories,slug'
+            // 'slug' => 'required|string|unique:categories,slug'
         ]);
 
         Category::create($validated);

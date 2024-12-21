@@ -98,13 +98,13 @@
                         <input type="text" name="name" id="categoryName"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
-                    <div class="mt-2">
+                    {{-- <div class="mt-2">
                         <label for="slug" class="block text-sm font-medium text-gray-700">
                             Slug
                         </label>
                         <input type="text" name="slug" id="categorySlug"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
+                    </div> --}}
                     <div class="flex justify-end mt-4 gap-2">
                         <button type="button" 
                                 onclick="closeModal()"
