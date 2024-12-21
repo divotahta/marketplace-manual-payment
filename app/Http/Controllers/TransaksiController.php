@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Transaksi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class TransaksiController extends Controller
 {
@@ -44,19 +45,36 @@ class TransaksiController extends Controller
 
         $product = Product::findOrFail($request->product_id);
         
-        $transaksi = Transaksi::create([
-            'user_id' => auth('web')->user()->id,
-            'product_id' => $product->id,
-            'total_price' => $product->price,
-            'status' => 'menunggu',
-            'payment_status' => 'menunggu',
-            'name' => $request->name,
-            'phone' => $request->phone,
-            'shipping_address' => $request->shipping_address,
-        ]);
+        // Cek apakah produk masih tersedia
+        if ($product->status === 'sold') {
+            return back()->with('error', 'Maaf, produk sudah terjual');
+        }
 
-        return redirect()->route('pelanggan.transaksi.payment', $transaksi)
-            ->with('success', 'Silahkan lakukan pembayaran');
+        DB::beginTransaction();
+        try {
+            $transaksi = Transaksi::create([
+                'user_id' => auth('web')->user()->id,
+                'product_id' => $product->id,
+                'total_price' => $product->price,
+                'status' => 'menunggu',
+                'payment_status' => 'menunggu',
+                'name' => $request->name,
+                'phone' => $request->phone,
+                'shipping_address' => $request->shipping_address,
+            ]);
+
+            // Set produk menjadi sold saat di-checkout
+            $product->update(['status' => 'sold']);
+
+            DB::commit();
+
+            return redirect()->route('pelanggan.transaksi.payment', $transaksi)
+                ->with('success', 'Silahkan lakukan pembayaran');
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'Terjadi kesalahan saat memproses pesanan');
+        }
     }
 
     public function payment(Transaksi $transaksi)
@@ -99,14 +117,41 @@ class TransaksiController extends Controller
                     'payment_status' => 'menunggu konfirmasi'
                 ]);
 
-                return redirect()->route('pelanggan.transaksi.show', $transaksi)
-                    ->with('success', 'Bukti pembayaran berhasil diupload');
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Bukti pembayaran berhasil diupload'
+                ]);
             }
 
-            return back()->with('error', 'File tidak valid');
+            return response()->json([
+                'success' => false,
+                'message' => 'File tidak valid'
+            ], 400);
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Gagal mengupload bukti pembayaran: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupload bukti pembayaran'
+            ], 500);
         }
+    }
+
+    public function cancel(Transaksi $transaksi)
+    {
+        if ($transaksi->user_id !== auth('web')->user()->id) {
+            abort(403);
+        }
+
+        if ($transaksi->status !== 'menunggu') {
+            return back()->with('error', 'Hanya pesanan dengan status menunggu yang dapat dibatalkan');
+        }
+
+        // Update status transaksi menjadi dibatalkan
+        $transaksi->update([
+            'status' => 'dibatalkan'  // Admin akan mengkonfirmasi dengan mengubah payment_status
+        ]);
+
+        return redirect()->route('pelanggan.transaksi.show', $transaksi)
+            ->with('success', 'Permintaan pembatalan pesanan sedang diproses admin');
     }
 }

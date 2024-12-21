@@ -17,7 +17,7 @@ class DashboardController extends Controller
         $totalTransaksi = $user->transaksis()->count();
         $totalPengeluaran = $user->transaksis()->sum('total_price');
         $pesananAktif = $user->transaksis()
-            ->whereIn('status', ['pending', 'processing'])
+            ->whereIn('status', ['menunggu', 'diproses'])
             ->count();
 
         // Transaksi terbaru

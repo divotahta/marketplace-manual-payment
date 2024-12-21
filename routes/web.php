@@ -72,6 +72,8 @@ Route::middleware(['auth', 'verified', 'role:pelanggan'])->prefix('pelanggan')->
         ->name('pelanggan.transaksi.payment');
     Route::post('/transaksi/{transaksi}/upload-payment', [TransaksiController::class, 'uploadBuktiPembayaran'])
         ->name('pelanggan.transaksi.upload-payment');
+    Route::post('/transaksi/{transaksi}/cancel', [TransaksiController::class, 'cancel'])
+        ->name('pelanggan.transaksi.cancel');
 });
 
 // Profile routes

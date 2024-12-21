@@ -7,6 +7,7 @@ use App\Models\Transaksi;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TransaksiAdminController extends Controller
 {
@@ -31,17 +32,30 @@ class TransaksiAdminController extends Controller
             'payment_status' => 'required|in:menunggu,menunggu konfirmasi,selesai,gagal'
         ]);
 
-        $transaksi->update([
-            'status' => $request->status,
-            'payment_status' => $request->payment_status
-        ]);
+        DB::beginTransaction();
+        try {
+            $transaksi->update([
+                'status' => $request->status,
+                'payment_status' => $request->payment_status
+            ]);
 
-        // Jika status pembayaran selesai, update status produk menjadi sold
-        if ($request->payment_status === 'selesai') {
-            $transaksi->product->update(['status' => 'sold']);
+            // Jika status diproses atau selesai, update status produk menjadi sold
+            if (in_array($request->status, ['diproses', 'selesai'])) {
+                $transaksi->product->update(['status' => 'sold']);
+            }
+
+            // Jika admin menyetujui pembatalan (status dibatalkan dan payment gagal)
+            if ($request->status === 'dibatalkan' && $request->payment_status === 'gagal') {
+                $transaksi->product->update(['status' => 'available']);
+            }
+
+            DB::commit();
+            return back()->with('success', 'Status transaksi berhasil diperbarui');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'Terjadi kesalahan saat memperbarui status');
         }
-
-        return back()->with('success', 'Status transaksi berhasil diperbarui');
     }
 
     public function report()

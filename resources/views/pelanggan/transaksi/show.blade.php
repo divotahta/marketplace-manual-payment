@@ -78,6 +78,21 @@
                         </a>
                     </div>
                     @endif
+
+                    <!-- Tombol Batal jika status masih menunggu -->
+                    @if($transaksi->status === 'menunggu')
+                    <div class="mt-8">
+                        <form action="{{ route('pelanggan.transaksi.cancel', $transaksi) }}" 
+                              method="POST" 
+                              onsubmit="return confirm('Apakah Anda yakin ingin membatalkan pesanan ini?')">
+                            @csrf
+                            <button type="submit" 
+                                    class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                                Batalkan Pesanan
+                            </button>
+                        </form>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>

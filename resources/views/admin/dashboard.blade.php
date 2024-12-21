@@ -55,7 +55,7 @@
                             </div>
                             <div class="ml-4">
                                 <h3 class="text-gray-500 text-sm font-medium">Pendapatan Hari Ini</h3>
-                                <p class="text-2xl font-semibold text-gray-700">Rp {{ number_format($todayRevenue, 0, ',', '.') }}</p>
+                                <p class="text-xl font-semibold text-gray-700"> Rp {{ number_format($todayRevenue, 0, ',', '.') }}</p>
                             </div>
                         </div>
                     </div>
@@ -94,8 +94,9 @@
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                                     {{ $transaction->status === 'selesai' ? 'bg-green-100 text-green-800' : 
+                                                       ($transaction->status === 'diproses' ? 'bg-blue-100 text-blue-800' : 
                                                        ($transaction->status === 'menunggu' ? 'bg-yellow-100 text-yellow-800' : 
-                                                       'bg-red-100 text-red-800') }}">
+                                                       ($transaction->status === 'dibatalkan' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800') ) ) }}">
                                                     {{ ucfirst($transaction->status) }}
                                                 </span>
                                             </td>
