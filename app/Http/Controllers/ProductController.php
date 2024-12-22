@@ -76,11 +76,12 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
-            'price' => 'required|numeric',
+            'price' => 'required|numeric|min:500000',
             'condition' => 'required|string',
             'category_id' => 'required|exists:categories,id',
             'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:1024'
         ], [
+            'price.min' => 'Harga minimal adalah Rp. 500.000',
             'image.max' => 'Ukuran gambar tidak boleh lebih dari 1MB'
         ]);
 
@@ -109,46 +110,72 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
+        // Ambil semua kategori untuk dropdown
         $categories = Category::all();
+
+        // Cek apakah produk sedang dalam transaksi aktif
+        $hasActiveTransaction = $product->transaksis()
+            ->whereIn('status', ['menunggu', 'diproses'])
+            ->exists();
+
+        if ($hasActiveTransaction) {
+            return back()->with('error', 'Produk tidak dapat diedit karena sedang dalam proses transaksi');
+        }
+
         return view('admin.products.edit', compact('product', 'categories'));
     }
 
     public function update(Request $request, Product $product)
     {
+        // Validasi input
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
-            'price' => 'required|numeric',
+            'price' => 'required|numeric|min:500000',
             'condition' => 'required|string',
             'category_id' => 'required|exists:categories,id',
-            'whatsapp' => 'required|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:1024'
         ], [
+            'price.min' => 'Harga minimal adalah Rp. 500.000',
             'image.max' => 'Ukuran gambar tidak boleh lebih dari 1MB'
         ]);
 
+        // Cek apakah produk sedang dalam transaksi aktif
+        $hasActiveTransaction = $product->transaksis()
+            ->whereIn('status', ['menunggu', 'diproses'])
+            ->exists();
+
+        if ($hasActiveTransaction) {
+            return back()->with('error', 'Produk tidak dapat diedit karena sedang dalam proses transaksi');
+        }
+
+        DB::beginTransaction();
         try {
-            $data = $request->all();
+            $data = $request->except('image');
             
+            // Handle upload gambar baru jika ada
             if ($request->hasFile('image') && $request->file('image')->isValid()) {
+                // Hapus gambar lama
                 if ($product->image && $product->image != 'products/default.jpg') {
-                    if (file_exists(public_path('storage/' . $product->image))) {
-                        unlink(public_path('storage/' . $product->image));
-                    }
+                    Storage::disk('public')->delete($product->image);
                 }
                 
+                // Upload gambar baru
                 $file = $request->file('image');
                 $filename = time() . '_' . $file->getClientOriginalName();
                 $file->move(public_path('storage/products'), $filename);
                 $data['image'] = 'products/' . $filename;
             }
 
+            // Update data produk
             $product->update($data);
 
-            return redirect()->route('admin.dashboard')
+            DB::commit();
+            return redirect()->route('admin.products.index')
                            ->with('success', 'Produk berhasil diperbarui');
                            
         } catch (\Exception $e) {
+            DB::rollback();
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())
                         ->withInput();
         }
